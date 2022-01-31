@@ -41,8 +41,8 @@ public:
   OpenthermClimate *heatingWaterClimate = new OpenthermClimate();
   BinarySensor *flame = new OpenthermBinarySensor();
   
-  // Set 4 sec. to give time to read all sensors (and not appear in HA as not available)
-  OpenthermComponent(): PollingComponent(4000) {
+  // Set 6 sec. to give time to read all sensors (and not appear in HA as not available)
+  OpenthermComponent(): PollingComponent(6000) {
   }
 
   void setup() override {
@@ -51,11 +51,7 @@ public:
       ESP_LOGD("opentherm_component", "Setup");
 
       ot.begin(handleInterrupt);
-
-      //thermostatSwitch->add_on_state_callback([=](bool state) -> void {
-      //  ESP_LOGD ("opentherm_component", "termostatSwitch_on_state_callback %d", state);    
-      //});
-	  
+ 
       heatingWaterClimate->set_supports_two_point_target_temperature(false);
       heatingWaterClimate->set_temperature_settings(minHeatingWaterTargetTemperature, maxHeatingWaterTargetTemperature, lastHeatingWaterTargetTemperature);
       heatingWaterClimate->setup();
@@ -158,13 +154,11 @@ public:
 	// jeżeli pierwsze uruchomienie sterownika lub zmieniono temperaturę na piecu, wtedy ją zczytuję i ustawiam w komponencie Climate
 	// jeżeli zmieniono wartość w climate to ustawiam taką na piecu    
 	float hotWaterTargetTemperature = getHotWaterTargetTemperature();
-	
-	
+		
     ESP_LOGD("opentherm_component", "hotWaterTargetTemperature: %f", hotWaterTargetTemperature);	  
     ESP_LOGD("opentherm_component", "lastHotWaterTargetTemperature: %f", lastHotWaterTargetTemperature);	  
     ESP_LOGD("opentherm_component", "hotWaterClimate->target_temperature: %f", hotWaterClimate->target_temperature);	        
-	
-	
+		
     if (lastHotWaterTargetTemperature == hotWaterClimate->target_temperature && lastHotWaterTargetTemperature != hotWaterTargetTemperature) {
 	  hotWaterClimate->target_temperature = hotWaterTargetTemperature;
 	  lastHotWaterTargetTemperature = hotWaterTargetTemperature;
@@ -195,7 +189,7 @@ public:
     
     // Publish status of thermostat that controls heating
     heatingWaterClimate->current_temperature = boilerTemperature;
-    heatingWaterClimate->action = isCentralHeatingActive && isFlameOn ? ClimateAction::CLIMATE_ACTION_HEATING : ClimateAction::CLIMATE_ACTION_OFF;
+    heatingWaterClimate->action = isCentralHeatingActive ? ClimateAction::CLIMATE_ACTION_HEATING : ClimateAction::CLIMATE_ACTION_OFF;
     heatingWaterClimate->publish_state();
   }
 
