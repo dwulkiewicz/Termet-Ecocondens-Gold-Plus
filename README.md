@@ -4,15 +4,14 @@ Projekt na bazie ESPHome OpenTherm https://github.com/rsciriano/ESPHome-OpenTher
 
 #Biblioteki:
 - OpenTherm boiler using [ESPHome](https://esphome.io/) 
-- [Ihor Melnyk](http://ihormelnyk.com/opentherm_adapter) or 
+- opentherm_adapter [Ihor Melnyk](http://ihormelnyk.com/opentherm_adapter) 
 
 #Hardware:
-- [DIYLESS](https://diyless.com/product/esp8266-thermostat-shield) OpenTherm Adapter
+- OpenTherm Adapter [DIYLESS](https://diyless.com/product/esp8266-thermostat-shield)
 
 #Instalacja
-- Copy the content of this repository to your ESPHome folder
-- Make sure the pin numbers are right, check the file opentherm_component.h in the esphome-opentherm folder.
-- Edit the opentherm.yaml file:
-    - Make sure the board and device settings are correct for your device
-    - Set the sensor entity_id with the external temperature sensor's name from Home Assistant. (The ESPHome sensor name is temperature_sensor).
-- Flash the ESP and configure in Home Assistant. It should be auto-discovered by the ESPHome Integration.
+- Skopiuj wszystkie pliki do folderu ESPHome
+- Upewnij się, że numery pinów są prawidłowe, w razie konieczności sprawdź plik opentherm_component.h w folderze termet-ecocondens.
+- Edytuj plik termet-ecocondens.yaml:
+     - Upewnij się, że ustawienia są prawidłowe dla Twojego urządzenia
+- Flash ESP i skonfiguruj w Home Assistant. Powinien zostać automatycznie wykryty przez ESPHome Integration.
