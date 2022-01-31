@@ -1,6 +1,6 @@
 # ESPHome Termet EcoCondens Gold Plus
 
-# na podstawie  ESPHome OpenTherm https://github.com/rsciriano/ESPHome-OpenTherm
+Projekt na bazie ESPHome OpenTherm https://github.com/rsciriano/ESPHome-OpenTherm
 
 #Biblioteki:
 - OpenTherm boiler using [ESPHome](https://esphome.io/) 
@@ -9,7 +9,7 @@
 #Hardware:
 - [DIYLESS](https://diyless.com/product/esp8266-thermostat-shield) OpenTherm Adapter
 
-## Instalacja
+#Instalacja
 - Copy the content of this repository to your ESPHome folder
 - Make sure the pin numbers are right, check the file opentherm_component.h in the esphome-opentherm folder.
 - Edit the opentherm.yaml file:
