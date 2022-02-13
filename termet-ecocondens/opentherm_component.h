@@ -7,8 +7,8 @@
 //#include "opentherm_output.h"
 
 // Pins to OpenTherm Adapter
-const int GPIO_BOILER_OT_RX = 5; //for Arduino, 4 for ESP8266 (D2), 21 for ESP32
-const int GPIO_BOILER_OT_TX = 4; //for Arduino, 5 for ESP8266 (D1), 22 for ESP32
+const int GPIO_BOILER_OT_RX = 4;  //ESP12 było 5; // 21 for ESP32
+const int GPIO_BOILER_OT_TX = 16; //ESP12 było 4; // 22 for ESP32
 
 const float minHotWaterTargetTemperature = 30;  		//Odczytane z Termet Ecocondens Gold+
 const float maxHotWaterTargetTemperature = 60;			//Odczytane z Termet Ecocondens Gold+
