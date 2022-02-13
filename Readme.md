@@ -8,6 +8,7 @@ Projekt na bazie ESPHome OpenTherm https://github.com/rsciriano/ESPHome-OpenTher
 
 #Hardware:
 - OpenTherm Adapter [DIYLESS](https://diyless.com/product/esp8266-thermostat-shield)
+- opentherm_adapter [Ihor Melnyk](http://ihormelnyk.com/arduino_opentherm_controller)
 
 #Instalacja
 - Skopiuj wszystkie pliki do folderu ESPHome
