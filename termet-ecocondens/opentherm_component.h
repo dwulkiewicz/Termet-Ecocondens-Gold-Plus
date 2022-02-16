@@ -10,6 +10,8 @@
 const int GPIO_BOILER_OT_RX = 4;  //ESP12 było 5; // 21 for ESP32
 const int GPIO_BOILER_OT_TX = 16; //ESP12 było 4; // 22 for ESP32
 
+const unsigned long publishTime = 180000;
+
 const float minHotWaterTargetTemperature = 30;  		//Odczytane z Termet Ecocondens Gold+
 const float maxHotWaterTargetTemperature = 60;			//Odczytane z Termet Ecocondens Gold+
 const float defaultHotWaterTargetTemperature = 39;
@@ -20,9 +22,28 @@ const float defaultHeatingWaterTargetTemperature = 50;
 
 OpenTherm ot(GPIO_BOILER_OT_RX, GPIO_BOILER_OT_TX);
 
-ICACHE_RAM_ATTR void handleInterrupt() {
+IRAM_ATTR  void handleInterrupt() {
 	ot.handleInterrupt();
 }
+
+struct Values {
+    bool isFlameOn = false;
+	unsigned long isFlameOnPublishTime = 0;
+    bool isCentralHeatingActive = false;
+	unsigned long isCentralHeatingActivePublishTime = 0;
+    bool isHotWaterActive = false;
+	unsigned long isHotWaterActivePublishTime = 0;	
+	float boilerTemperature = -1; 
+	unsigned long boilerTemperaturePublishTime = 0;	
+	float hotWaterTemperature = -1; 
+	unsigned long hotWaterTemperaturePublishTime = 0;
+	float returnTemperature	= -1;
+	unsigned long returnTemperaturePublishTime = 0;		
+	float pressure = -1; 
+	unsigned long pressurePublishTime = 0;
+	float modulation = -1;
+	unsigned long modulationPublishTime = 0;	
+};
 
 class OpenthermComponent: public PollingComponent {
 private:
@@ -41,8 +62,10 @@ public:
   OpenthermClimate *heatingWaterClimate = new OpenthermClimate();
   BinarySensor *flame = new OpenthermBinarySensor();
   
-  // Set 6 sec. to give time to read all sensors (and not appear in HA as not available)
-  OpenthermComponent(): PollingComponent(6000) {
+  Values lastValues; 
+  
+  // Set 1 sec. to give time to read all sensors (and not appear in HA as not available)
+  OpenthermComponent(): PollingComponent(1000) {
   }
 
   void setup() override {
@@ -106,30 +129,55 @@ public:
   }
 
   void update() override {
+    ESP_LOGD("opentherm_component", "update()");
 
-    ESP_LOGD("opentherm_component", "update heatingWaterClimate: %i", heatingWaterClimate->mode);
-    ESP_LOGD("opentherm_component", "update hotWaterClimate: %i", hotWaterClimate->mode);
+    Values currValues;
     
     bool enableCentralHeating = heatingWaterClimate->mode == ClimateMode::CLIMATE_MODE_HEAT;
-    bool enableHotWater = hotWaterClimate->mode == ClimateMode::CLIMATE_MODE_HEAT;
-    bool enableCooling = false; // this boiler is for heating only
+    //bool enableHotWater = hotWaterClimate->mode == ClimateMode::CLIMATE_MODE_HEAT; //tylko odczyt
+    //bool enableCooling = false; // this boiler is for heating only
     
+	
     //Set/Get Boiler Status
-    auto response = ot.setBoilerStatus(enableCentralHeating, enableHotWater, enableCooling);
-    bool isFlameOn = ot.isFlameOn(response);
-    bool isCentralHeatingActive = ot.isCentralHeatingActive(response);
-    bool isHotWaterActive = ot.isHotWaterActive(response);
-    float return_temperature = getReturnTemperature();
-    float hotWater_temperature = getHotWaterTemperature();
-    float boilerTemperature = ot.getBoilerTemperature();
-    float pressure = getPressure();
-    float modulation = getModulation();
+    unsigned long response = ot.setBoilerStatus(enableCentralHeating);
+    OpenThermResponseStatus responseStatus = ot.getLastResponseStatus();  
+       
+    if (responseStatus == OpenThermResponseStatus::SUCCESS) {
+		currValues.isFlameOn = ot.isFlameOn(response);
+		currValues.isCentralHeatingActive = ot.isCentralHeatingActive(response);		
+		currValues.isHotWaterActive = ot.isHotWaterActive(response);
+		delay(100);
+    }
+    if (responseStatus == OpenThermResponseStatus::NONE) {
+        ESP_LOGD("opentherm_component", "OpenTherm Error: OpenTherm is not initialized");
+		return;
+    }
+    else if (responseStatus == OpenThermResponseStatus::INVALID) {
+		//String msg = "Error: Invalid response " + String(response, HEX);
+        ESP_LOGD("opentherm_component", "OpenTherm Error: Invalid response");
+		return;
+    }
+    else if (responseStatus == OpenThermResponseStatus::TIMEOUT) {
+        ESP_LOGD("opentherm_component", "OpenTherm Error: Response timeout");
+		return;
+    }	
+	
+    currValues.returnTemperature = getReturnTemperature();
+	delay(100);    
+    currValues.hotWaterTemperature = getHotWaterTemperature();
+	delay(100);    
+    currValues.boilerTemperature = ot.getBoilerTemperature();
+	delay(100);    
+    currValues.pressure = getPressure();
+	delay(100);    
+    currValues.modulation = getModulation();
+	delay(100);    
     
     // Set heating water temperature      
 	// jeżeli pierwsze uruchomienie sterownika lub zmieniono temperaturę na piecu, wtedy ją zczytuję i ustawiam w komponencie Climate
 	// jeżeli zmieniono wartość w climate to ustawiam taką na piecu
 	float heatingWaterTargetTemperature = getHeatingWaterTargetTemperature();
-
+	delay(100);
     ESP_LOGD("opentherm_component", "heatingWaterTargetTemperature: %f", heatingWaterTargetTemperature);	  
     ESP_LOGD("opentherm_component", "lastHeatingWaterTargetTemperature: %f", lastHeatingWaterTargetTemperature);	  
     ESP_LOGD("opentherm_component", "heatingWaterClimate->target_temperature: %f", heatingWaterClimate->target_temperature);	        
@@ -154,7 +202,7 @@ public:
 	// jeżeli pierwsze uruchomienie sterownika lub zmieniono temperaturę na piecu, wtedy ją zczytuję i ustawiam w komponencie Climate
 	// jeżeli zmieniono wartość w climate to ustawiam taką na piecu    
 	float hotWaterTargetTemperature = getHotWaterTargetTemperature();
-		
+	delay(100);		
     ESP_LOGD("opentherm_component", "hotWaterTargetTemperature: %f", hotWaterTargetTemperature);	  
     ESP_LOGD("opentherm_component", "lastHotWaterTargetTemperature: %f", lastHotWaterTargetTemperature);	  
     ESP_LOGD("opentherm_component", "hotWaterClimate->target_temperature: %f", hotWaterClimate->target_temperature);	        
@@ -175,22 +223,56 @@ public:
     }  
 
     // Publish sensor values
-    flame->publish_state(isFlameOn); 
-    return_temperature_sensor->publish_state(return_temperature);
-    boiler_temperature->publish_state(boilerTemperature);
-    pressure_sensor->publish_state(pressure);
-    modulation_sensor->publish_state(modulation);    
-	//heating_target_temperature_sensor->publish_state(modulation); 
+	unsigned long milis = millis();
+    if (milis - lastValues.isFlameOnPublishTime >= publishTime || currValues.isFlameOn != lastValues.isFlameOn){
+		lastValues.isFlameOnPublishTime = milis;		
+		lastValues.isFlameOn = currValues.isFlameOn;
+		flame->publish_state(currValues.isFlameOn); 
+	}
+   
+    if (milis - lastValues.returnTemperaturePublishTime >= publishTime || currValues.returnTemperature != lastValues.returnTemperature){
+		lastValues.returnTemperaturePublishTime = milis;		
+		lastValues.returnTemperature = currValues.returnTemperature;
+		return_temperature_sensor->publish_state(currValues.returnTemperature); 
+	}
+   
+    if (milis - lastValues.pressurePublishTime >= publishTime || currValues.pressure != lastValues.pressure){
+		lastValues.pressurePublishTime = milis;		
+		lastValues.pressure = currValues.pressure;
+		pressure_sensor->publish_state(currValues.pressure); 
+	}  
+   
+    if (milis - lastValues.modulationPublishTime >= publishTime || currValues.modulation != lastValues.modulation){
+		lastValues.modulationPublishTime = milis;		
+		lastValues.modulation = currValues.modulation;
+		modulation_sensor->publish_state(currValues.modulation); 
+	}     
 
     // Publish status of thermostat that controls hot water
-    hotWaterClimate->current_temperature = hotWater_temperature;
-    hotWaterClimate->action = isHotWaterActive ? ClimateAction::CLIMATE_ACTION_HEATING : ClimateAction::CLIMATE_ACTION_OFF;
-    hotWaterClimate->publish_state();
+	if (milis - lastValues.hotWaterTemperaturePublishTime >= publishTime || currValues.hotWaterTemperature != lastValues.hotWaterTemperature ||
+		milis - lastValues.isHotWaterActivePublishTime >= publishTime || currValues.isHotWaterActive != lastValues.isHotWaterActive){
+		lastValues.isHotWaterActivePublishTime = milis;		
+		lastValues.isHotWaterActive = currValues.isHotWaterActive;
+		lastValues.hotWaterTemperaturePublishTime = milis;		
+		lastValues.hotWaterTemperature = currValues.hotWaterTemperature;
+		hotWaterClimate->current_temperature = currValues.hotWaterTemperature;
+		hotWaterClimate->action = currValues.isHotWaterActive ? ClimateAction::CLIMATE_ACTION_HEATING : ClimateAction::CLIMATE_ACTION_OFF;
+		hotWaterClimate->publish_state();
+	}	
     
     // Publish status of thermostat that controls heating
-    heatingWaterClimate->current_temperature = boilerTemperature;
-    heatingWaterClimate->action = isCentralHeatingActive ? ClimateAction::CLIMATE_ACTION_HEATING : ClimateAction::CLIMATE_ACTION_OFF;
-    heatingWaterClimate->publish_state();
+	if (milis - lastValues.boilerTemperaturePublishTime >= publishTime || currValues.boilerTemperature != lastValues.boilerTemperature ||
+		milis - lastValues.isCentralHeatingActivePublishTime >= publishTime || currValues.isCentralHeatingActive != lastValues.isCentralHeatingActive){
+		lastValues.isCentralHeatingActivePublishTime = milis;		
+		lastValues.isCentralHeatingActive = currValues.isCentralHeatingActive;
+		lastValues.boilerTemperaturePublishTime = milis;		
+		lastValues.boilerTemperature = currValues.boilerTemperature;		
+		boiler_temperature->publish_state(currValues.boilerTemperature);
+		heatingWaterClimate->current_temperature = currValues.boilerTemperature;
+		heatingWaterClimate->action = currValues.isCentralHeatingActive ? ClimateAction::CLIMATE_ACTION_HEATING : ClimateAction::CLIMATE_ACTION_OFF;
+		heatingWaterClimate->publish_state();	
+	}	
+	
   }
 
 };
